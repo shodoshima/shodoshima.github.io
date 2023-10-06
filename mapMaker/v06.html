@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html, body {
+    height: 100%;
+    padding: 0;
+    margin: 0;
+}
+#mapid {
+    height: 100%;
+    width: 100%;
+}
+</style>
+<meta charset="UTF-8">
+<title>Leafletサンプル</title>
+<!-- 単純表示 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" integrity="sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60Mpoj+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+<div id="mapid"></div>
+<script>
+let Points = [];
+let Ptr = {};
+let Settings = {};
+
+function getIndexPtr(){
+  Points[0].map(function(e, i){
+   Ptr[e] = i;
+  });
+}
+
+function mapInit(){
+    console.log(Points);
+    console.log(Ptr);
+    console.log(Settings);
+    let gsi = true;
+    let map = L.map('mapid',{
+        center:[Settings['centerLat'], Settings['centerLng']],
+        zoomControl:false,
+        zoom:Settings['defaultZoom'],
+        attributionControl: false,
+    });
+    map.options.minZoom = Settings['minMapZoom'];
+    map.options.maxZoom = Settings['maxMapZoom'];
+
+    map.on('drag', function() {
+        map.panInsideBounds(bounds, { animate: false });
+    });
+
+
+<!-- markers -->
+    for(let i = 1; i < Points.length; i+=1){
+        const p = Points[i];
+        let comment = p[Ptr['名称']];
+        let marker = L.marker([p[Ptr['緯度']], p[Ptr['経度']]]);
+        marker.bindPopup(comment).openPopup();
+        marker.addTo(map);
+        
+    }
+<!-- markers -->
+
+    let mapTile = 'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png';
+    if(Settings['maptype'] === 'blank'){
+        mapTile = 'https://cyberjapandata.gsi.go.jp/xyz/blank/{z}/{x}/{y}.png';
+    }
+    L.tileLayer(
+        mapTile,
+        {
+    }).addTo(map);
+        imageBounds = [
+            [33.200, 133.485],
+            [35.500, 134.572]
+        ];
+    let bounds = L.latLngBounds(imageBounds)
+    map.setMaxBounds(bounds);
+}
+
+function loadHtml(data){
+  console.log(data);
+  let tableCount = 0;
+  $(data).find('table.waffle').each(function(){
+    console.log('====');
+    tableCount += 1;
+    let rowCount = 0;
+    $(this).find('tr').each(function(){
+      //console.log('----');
+      rowCount += 1;
+      let buff = [];
+      let tData = $(this).find('td');
+      if(1 < tData.length){
+        tData.each(function(){
+          //console.log($(this).text());
+          buff.push($(this).text());
+        });
+      }
+      if((tableCount == 1)&&(1 < buff.length)){
+        Points.push(buff);
+      }else if((tableCount == 2)&&(buff[0] !== undefined)){
+        Settings[buff[0]] = buff[1];
+      }
+    });
+  });
+  getIndexPtr();
+  mapInit();
+}
+
+function getPointList(url){
+  console.log(url);
+  $.ajax({
+    type:'GET',
+    url: url,
+    success: loadHtml
+  });
+}
+
+function getParam(){
+    let url = new URL(window.location.href);
+    let p = url.searchParams;
+    console.log(p);
+    return {'docid': p.get('docid'), 'mtype':p.get('mtype')};
+    
+}
+
+
+function main(){
+    let param = getParam();
+    console.log(getParam());
+    if(param['docid'].length < 10){
+    }else{
+        const url = 'https://docs.google.com/spreadsheets/d/'+ param['docid'] + '/pubhtml';
+        getPointList(url);
+    }
+}
+
+main();
+</script>
+</body>
+</html>
